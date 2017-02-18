@@ -1,0 +1,108 @@
+---
+title: "Rendición de Cuentas Elecciones Municipales 2015: Unión por Córdoba."
+output: 
+  flexdashboard::flex_dashboard:
+    social: ["facebook", "twitter", "google-plus", "linkedin"]
+    orientation: columns
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+suppressMessages(library(plotly))
+suppressMessages(library(dplyr))
+library(leaflet)
+aportes <- readr::read_csv("./data/Datos Aportante Campania UPC - Sheet1.csv")
+aportes$nombre_completo <- paste0(aportes$apellido,", ",aportes$nombre)
+#aportes <- aportes[!is.na(aportes$latitude),]
+```
+
+Column {data-width=250}
+-------------------------------------
+   
+### Chart 1
+
+```{r}
+aportantes <- nrow(aportes[,-8])
+valueBox(aportantes, icon = "ion-person-add", 
+         caption = "Cantidad de Aportantes Declarados.")
+```   
+    
+### Chart 2
+
+```{r}
+aportes_realizados <- sum(aportes$aportes)
+valueBox(paste("$",format(aportes_realizados, big.mark="."),sep=""),
+         icon = "ion-cash", 
+         caption = "Cantidad de Aportes Realizados sobre el Total de $15.721.638,81.")
+```
+
+### Información
+
+Detalle de los aportantes para las Elecciones Municipales de Córdoba 2015 en base a la rendición de cuentas que Unión por Córdoba realizó a la justicia al día de la fecha (17/02/2017).
+
+Trabajo realizado por [Patricio Del Boca](https://twitter.com/pdelboca) en colaboración con [Open Data Córdoba](https://opendatacordoba.org). Datos extraidos del [Portal de Datos Abiertos](https://gobiernoabierto.cordoba.gob.ar/data/datos-abiertos/categoria/sociedad/rendicion-de-cuentas-elecciones-municipales-2015/188) de la Ciudad de Córdoba.
+
+Para más información y análisis de otro partidos contactarse con los desarrolladores.
+
+Row {.tabset data-width=750}
+-------------------------------------
+
+### Mapa de los Aportantes
+
+```{r}
+pal <- colorNumeric(
+  palette = "YlOrRd",
+  domain = aportes$aportes
+)
+
+aportes_completos <- aportes[!is.na(aportes$latitude),]
+
+content <- paste0(
+  "</br><b>Nombre:</b> ", aportes_completos$nombre_completo,
+  "</br><b>DNI:</b> ", format(aportes_completos$dni, big.mark="."),
+  "</br><b>Dirección:</b> ", aportes_completos$calle,
+  "</br><b>Aportes:</b> ", paste0("$",format(aportes$aportes, big.mark=","))
+)
+
+m <- leaflet(data=aportes_completos) %>%
+  addProviderTiles("OpenStreetMap.BlackAndWhite") %>%  
+   addCircleMarkers(
+    stroke = FALSE, 
+    fillOpacity = .8, 
+    color=~pal(aportes),
+    popup = content
+  ) %>%
+  addLegend("bottomright", pal = pal, values = ~aportes,
+    title = "Aportes en pesos",
+    labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+m  # Print the map
+```
+
+### Distribucion de los Aportes
+```{r}
+library(plotly)
+
+aportes %>%
+    group_by(aportes) %>%
+    summarise(cantidad = n()) %>%
+    mutate(aportes = paste0("$",format(aportes, big.mark=","))) -> bar_aportes
+
+p <- plot_ly(bar_aportes, 
+             x = ~aportes, 
+             y = ~cantidad, 
+             type = 'bar', 
+             name = 'Cantidad de Aportantes') %>%
+  layout(title="Cantidad de Aportes por Monto",
+         xaxis = list(title = "", tickangle = -45),
+         yaxis = list(title = ""),
+         margin = list(b = 100))
+p
+```
+
+### Datos de los Aportantes
+```{r}
+DT::datatable(aportes[,c("nombre_completo", "dni", "calle", "ciudad","aportes")])
+```
+
